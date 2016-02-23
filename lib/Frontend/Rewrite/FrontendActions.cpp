@@ -9,6 +9,7 @@
 
 #include "clang/Rewrite/Frontend/FrontendActions.h"
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -23,6 +24,8 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <memory>
+#include <sstream>
+
 
 using namespace clang;
 
@@ -143,6 +146,139 @@ bool FixItRecompile::BeginInvocation(CompilerInstance &CI) {
   PPOpts.RemappedFiles.insert(PPOpts.RemappedFiles.end(),
                               RewrittenFiles.begin(), RewrittenFiles.end());
   PPOpts.RemappedFilesKeepOriginalName = false;
+
+  return true;
+}
+
+class InjectTestSeamVisitor
+  : public RecursiveASTVisitor<InjectTestSeamVisitor> {
+public:
+  InjectTestSeamVisitor(Rewriter &R, ASTContext &AC) 
+    : _Rewriter(R), _ASTContext(AC) {}
+
+  bool VisitFunctionDecl (FunctionDecl *FD) {
+    if(FD->hasAttr<EasyTestSeamAttr>()) {
+      if(!FD->isThisDeclarationADefinition()) {
+        // Turn the function prototype into a variable. Example:
+        // int foo(void); --> extern int (*foo)(void);
+        _Rewriter.InsertText(FD->getTypeSpecStartLoc(), "extern ");
+        _Rewriter.InsertTextAfterToken(FD->getNameInfo().getLocEnd(), ")");
+        _Rewriter.InsertText(FD->getNameInfo().getLocStart(), "(*");
+        // We have to remove the attribute, since this is no longer a 
+        // functionDecl
+        for (Attr* At : FD->attrs()) {
+          if(At->getKind() == attr::Kind::EasyTestSeam) {
+            unsigned length = Lexer::MeasureTokenLength(At->getLocation(), 
+              _ASTContext.getSourceManager(), _ASTContext.getLangOpts());
+            _Rewriter.RemoveText(At->getLocation(), length);
+          }
+        }
+      } else {
+        DeclarationNameInfo DNI = FD->getNameInfo();
+        // Rename the original function. Example:
+        // int foo(void) --> int _ETS_orig_foo(void)
+        _Rewriter.InsertText(DNI.getLocStart(), "_ETS_orig_");
+
+        // Reconstruct the functionDecl into a variable and assign the
+        // renamed function. Example:
+        // int (*foo)(void) = _ETS_orig_foo;
+        std::string function_name = DNI.getName().getAsString();
+        std::string funtion_return_type = FD->getReturnType().getAsString();
+
+        std::ostringstream assignment;
+        assignment << funtion_return_type << " (*" << function_name << ")(";
+
+        bool first = true;
+        for (auto PVDecl : FD->params()) {
+          if (!first) assignment << ", ";
+          first = false;
+          assignment << PVDecl->getType().getAsString() << " " <<
+                        PVDecl->getName().str();
+        }
+        if(first) {
+          assignment << "void"; // There was no parameter
+        } else if(FD->isVariadic()) {
+          assignment << ", ...";
+        }
+        assignment << ") = _ETS_orig_" << function_name << ";";
+
+        _Rewriter.InsertTextAfterToken(FD->getLocEnd(), assignment.str());
+      }
+    }
+    return true;
+  }
+private:
+  Rewriter &_Rewriter;
+  ASTContext &_ASTContext;
+};
+
+class InjectTestSeamConsumer : public ASTConsumer {
+public:
+  InjectTestSeamConsumer(Rewriter &R, ASTContext &AC) : Visitor(R, AC) {}
+
+  void HandleTranslationUnit(ASTContext &Context) {
+    Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+  }
+private:
+  InjectTestSeamVisitor Visitor;
+};
+
+class InjectTestSeamAction : public ASTFrontendAction {
+public:
+  InjectTestSeamAction(Rewriter &R) : _Rewriter(R) {}
+protected:
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) {
+    _Rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
+    return std::unique_ptr<clang::ASTConsumer>(
+      new InjectTestSeamConsumer(_Rewriter, CI.getASTContext()));
+  }
+private:
+  Rewriter &_Rewriter;
+};
+
+bool InjectTestSeamRecompile::BeginInvocation(CompilerInstance &CI) {
+  Rewriter rewriter;
+  std::vector<std::pair<std::string, llvm::MemoryBuffer *>> RemappedFileBuffers;
+  bool err = false;
+  {
+    const FrontendOptions &FEOpts = CI.getFrontendOpts();
+    
+    std::unique_ptr<FrontendAction> InjectAction(new InjectTestSeamAction(rewriter));
+    if (InjectAction->BeginSourceFile(CI, FEOpts.Inputs[0])) {
+      // Emitting diagnostics now is not needed, the AST is reparsed after this wrapped action
+      // CI.getDiagnostics().setSuppressAllDiagnostics(true);
+      InjectAction->Execute();
+      // CI.getDiagnostics().setSuppressAllDiagnostics(false);
+  
+      PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+      for (Rewriter::buffer_iterator
+            I = rewriter.buffer_begin(), E = rewriter.buffer_end(); I != E; ++I) {
+        FileID FID = I->first;
+        RewriteBuffer &RewriteBuf = I->second;
+
+        const FileEntry *file = CI.getSourceManager().getFileEntryForID(FID);
+        assert(file);
+        std::string name_of_file = file->getName();
+
+        std::unique_ptr<llvm::MemoryBuffer> MB =
+             llvm::MemoryBuffer::getMemBufferCopy(
+               std::string(RewriteBuf.begin(), RewriteBuf.end()));
+
+        PPOpts.addRemappedFile(name_of_file, MB.release());
+      }
+    
+      InjectAction->EndSourceFile();
+      CI.setSourceManager(nullptr);
+      CI.setFileManager(nullptr);
+    } else {
+      err = true;
+    }
+  }
+  if (err)
+    return false;
+  CI.getDiagnosticClient().clear();
+  CI.getDiagnostics().Reset();
 
   return true;
 }

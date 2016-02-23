@@ -57,6 +57,17 @@ protected:
   bool BeginInvocation(CompilerInstance &CI) override;
 };
 
+/// \brief Emits injected test seams to temporary files and uses them for the 
+/// original frontend action.
+class InjectTestSeamRecompile : public WrapperFrontendAction {
+public:
+  InjectTestSeamRecompile(FrontendAction *WrappedAction)
+    : WrapperFrontendAction(WrappedAction) {}
+
+protected:
+  bool BeginInvocation(CompilerInstance &CI) override;
+};
+
 class RewriteObjCAction : public ASTFrontendAction {
 protected:
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,

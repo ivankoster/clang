@@ -147,6 +147,8 @@ public:
                                            ///< dumps in AST dumps.
   unsigned ASTDumpLookups : 1;             ///< Whether we include lookup table
                                            ///< dumps in AST dumps.
+  unsigned InjectTestSeams : 1;            ///< Inject test seams into temporary
+                                           /// buffers and recompile with them.
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -260,6 +262,7 @@ public:
     FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
     SkipFunctionBodies(false), UseGlobalModuleIndex(true),
     GenerateGlobalModuleIndex(true), ASTDumpDecls(false), ASTDumpLookups(false),
+    InjectTestSeams(false),
     ARCMTAction(ARCMT_None), ObjCMTAction(ObjCMT_None),
     ProgramAction(frontend::ParseSyntaxOnly)
   {}

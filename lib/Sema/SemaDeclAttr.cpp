@@ -4675,6 +4675,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_Destructor:
     handleDestructorAttr(S, D, Attr);
     break;
+  case AttributeList::AT_EasyTestSeam:
+    handleSimpleAttribute<EasyTestSeamAttr>(S, D, Attr);
+    break;
   case AttributeList::AT_EnableIf:
     handleEnableIfAttr(S, D, Attr);
     break;

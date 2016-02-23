@@ -121,6 +121,10 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
 
   const FrontendOptions &FEOpts = CI.getFrontendOpts();
 
+  if (FEOpts.InjectTestSeams) {
+    Act = new InjectTestSeamRecompile(Act);
+  }
+
   if (FEOpts.FixAndRecompile) {
     Act = new FixItRecompile(Act);
   }

@@ -5003,6 +5003,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back(it->getFilename());
     }
 
+  if (Args.hasArg(options::OPT_inject_test_seams))
+    CmdArgs.push_back("-inject-test-seams");
+
   // Finally add the compile command to the compilation.
   if (Args.hasArg(options::OPT__SLASH_fallback) &&
       Output.getType() == types::TY_Object &&
