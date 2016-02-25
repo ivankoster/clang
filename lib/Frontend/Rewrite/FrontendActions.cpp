@@ -247,9 +247,9 @@ bool InjectTestSeamRecompile::BeginInvocation(CompilerInstance &CI) {
     std::unique_ptr<FrontendAction> InjectAction(new InjectTestSeamAction(rewriter));
     if (InjectAction->BeginSourceFile(CI, FEOpts.Inputs[0])) {
       // Emitting diagnostics now is not needed, the AST is reparsed after this wrapped action
-      // CI.getDiagnostics().setSuppressAllDiagnostics(true);
+      CI.getDiagnostics().setSuppressAllDiagnostics(true);
       InjectAction->Execute();
-      // CI.getDiagnostics().setSuppressAllDiagnostics(false);
+      CI.getDiagnostics().setSuppressAllDiagnostics(false);
   
       PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
       for (Rewriter::buffer_iterator
@@ -279,6 +279,7 @@ bool InjectTestSeamRecompile::BeginInvocation(CompilerInstance &CI) {
     return false;
   CI.getDiagnosticClient().clear();
   CI.getDiagnostics().Reset();
+  ProcessWarningOptions(CI.getDiagnostics(), CI.getDiagnosticOpts());
 
   return true;
 }
