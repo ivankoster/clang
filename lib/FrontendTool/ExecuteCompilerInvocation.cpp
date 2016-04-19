@@ -121,10 +121,14 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
 
   const FrontendOptions &FEOpts = CI.getFrontendOpts();
 
+  if (FEOpts.InjectTestSeams) {
+    Act = new InjectTestSeamRecompile(Act);
+  }
+
   if (FEOpts.FixAndRecompile) {
     Act = new FixItRecompile(Act);
   }
-  
+
 #ifdef CLANG_ENABLE_ARCMT
   if (CI.getFrontendOpts().ProgramAction != frontend::MigrateSource &&
       CI.getFrontendOpts().ProgramAction != frontend::GeneratePCH) {

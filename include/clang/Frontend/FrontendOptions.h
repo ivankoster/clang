@@ -77,7 +77,7 @@ enum InputKind {
   IK_LLVM_IR
 };
 
-  
+
 /// \brief An input file for the front end.
 class FrontendInputFile {
   /// \brief The file name, or "-" to read from standard input.
@@ -148,6 +148,8 @@ public:
                                            ///< dumps in AST dumps.
   unsigned ASTDumpLookups : 1;             ///< Whether we include lookup table
                                            ///< dumps in AST dumps.
+  unsigned InjectTestSeams : 1;            ///< Inject test seams into temporary
+                                           /// buffers and recompile with them.
   unsigned BuildingImplicitModule : 1;     ///< Whether we are performing an
                                            ///< implicit module build.
   unsigned ModulesEmbedAllFiles : 1;       ///< Whether we should embed all used
@@ -274,6 +276,7 @@ public:
     FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
     SkipFunctionBodies(false), UseGlobalModuleIndex(true),
     GenerateGlobalModuleIndex(true), ASTDumpDecls(false), ASTDumpLookups(false),
+    InjectTestSeams(false),
     BuildingImplicitModule(false), ModulesEmbedAllFiles(false),
     ARCMTAction(ARCMT_None), ObjCMTAction(ObjCMT_None),
     ProgramAction(frontend::ParseSyntaxOnly)

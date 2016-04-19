@@ -1214,6 +1214,9 @@ def relocatable_pch : Flag<["-", "--"], "relocatable-pch">, Flags<[CC1Option]>,
 def verify_pch : Flag<["-"], "verify-pch">, Group<Action_Group>, Flags<[CC1Option]>,
   HelpText<"Load and verify that a pre-compiled header file is not stale">;
 def init : Separate<["-"], "init">;
+def inject_test_seams : Flag<["-"], "inject-test-seams">,
+  Flags<[DriverOption,CC1Option,CoreOption]>,
+  HelpText<"Inject test seams (see attribute easy_test_seam) and recompile">;
 def install__name : Separate<["-"], "install_name">;
 def iprefix : JoinedOrSeparate<["-"], "iprefix">, Group<clang_i_Group>, Flags<[CC1Option]>,
   HelpText<"Set the -iwithprefix/-iwithprefixbefore prefix">, MetaVarName<"<dir>">;

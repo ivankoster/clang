@@ -709,6 +709,12 @@ def Destructor : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
+def EasyTestSeam : InheritableAttr {
+  let Spellings = [GNU<"easy_test_seam">];
+  let Subjects = SubjectList<[Function]>;
+  let Documentation = [Undocumented];
+}
+
 def EnableIf : InheritableAttr {
   let Spellings = [GNU<"enable_if">];
   let Subjects = SubjectList<[Function]>;
